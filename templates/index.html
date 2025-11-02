@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EV Finder</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      margin: 40px;
+      background: #f4f6f8;
+    }
+    h1 {
+      color: #333;
+    }
+    .box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    button {
+      padding: 10px 20px;
+      background: #0078ff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #005ecc;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔋 EV Charging Assistant</h1>
+
+  <div class="box">
+    <p><b>Battery Level:</b> <span id="battery">Loading...</span></p>
+    <p><b>Current Location:</b> <span id="location">Fetching...</span></p>
+    <p><b>Nearest Station:</b> <span id="station">Loading...</span></p>
+    <p><b>Distance:</b> <span id="distance">Loading...</span></p>
+    <button id="directions" disabled>Get Directions</button>
+  </div>
+
+  <script>
+    // Fetch battery info
+    navigator.getBattery().then(function(battery) {
+      document.getElementById('battery').innerText = (battery.level * 100).toFixed(0) + '%';
+    });
+
+    // Fetch location and nearest station
+    navigator.geolocation.getCurrentPosition(success, error);
+
+    function success(pos) {
+      let lat = pos.coords.latitude;
+      let lon = pos.coords.longitude;
+      document.getElementById('location').innerText = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+
+      fetch('/nearest', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ lat: lat, lon: lon })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          document.getElementById('station').innerText = "No station found";
+        } else {
+          document.getElementById('station').innerText = data.name;
+          document.getElementById('distance').innerText = data.distance + " km";
+          const btn = document.getElementById('directions');
+          btn.disabled = false;
+          btn.onclick = () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lon}`);
+        }
+      })
+      .catch(err => console.error("Error:", err));
+    }
+
+    function error(err) {
+      document.getElementById('location').innerText = "Location access denied!";
+      console.error("Geolocation error:", err);
+    }
+  </script>
+</body>
+</html>
