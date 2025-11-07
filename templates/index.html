@@ -3,88 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EV Finder</title>
+  <title>EV Locator App</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0078D7">
   <style>
     body {
-      font-family: Arial;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #e3f2fd, #bbdefb);
+      color: #333;
       text-align: center;
-      margin: 40px;
-      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      padding: 20px;
     }
     h1 {
-      color: #333;
+      color: #0d47a1;
+      margin-bottom: 10px;
     }
-    .box {
+    .card {
       background: #fff;
+      margin: 10px auto;
       border-radius: 10px;
+      box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
       padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       width: 90%;
       max-width: 400px;
-      margin: 0 auto;
     }
     button {
-      padding: 10px 20px;
-      background: #0078ff;
+      background-color: #1976d2;
       color: white;
       border: none;
+      padding: 10px 15px;
       border-radius: 6px;
+      font-size: 16px;
       cursor: pointer;
       margin-top: 10px;
     }
     button:hover {
-      background: #005ecc;
+      background-color: #0d47a1;
     }
   </style>
 </head>
 <body>
-  <h1>🔋 EV Charging Assistant</h1>
-
-  <div class="box">
-    <p><b>Battery Level:</b> <span id="battery">Loading...</span></p>
-    <p><b>Current Location:</b> <span id="location">Fetching...</span></p>
-    <p><b>Nearest Station:</b> <span id="station">Loading...</span></p>
-    <p><b>Distance:</b> <span id="distance">Loading...</span></p>
-    <button id="directions" disabled>Get Directions</button>
+  <div class="container">
+    <h1>⚡ EV Locator</h1>
+    <div class="card">
+      <p id="battery">🔋 Battery: Loading...</p>
+      <p id="location">📍 Location: Detecting...</p>
+      <p id="nearest">⛽ Nearest Station: Loading...</p>
+      <p id="distance">📏 Distance: ...</p>
+      <button id="dirBtn" style="display:none;">Get Directions</button>
+    </div>
   </div>
 
   <script>
-    // Fetch battery info
-    navigator.getBattery().then(function(battery) {
-      document.getElementById('battery').innerText = (battery.level * 100).toFixed(0) + '%';
-    });
-
-    // Fetch location and nearest station
-    navigator.geolocation.getCurrentPosition(success, error);
-
-    function success(pos) {
-      let lat = pos.coords.latitude;
-      let lon = pos.coords.longitude;
-      document.getElementById('location').innerText = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-
-      fetch('/nearest', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ lat: lat, lon: lon })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) {
-          document.getElementById('station').innerText = "No station found";
-        } else {
-          document.getElementById('station').innerText = data.name;
-          document.getElementById('distance').innerText = data.distance + " km";
-          const btn = document.getElementById('directions');
-          btn.disabled = false;
-          btn.onclick = () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lon}`);
-        }
-      })
-      .catch(err => console.error("Error:", err));
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(() => console.log('✅ Service Worker Registered'))
+        .catch(err => console.log('❌ Service Worker Failed', err));
     }
 
-    function error(err) {
-      document.getElementById('location').innerText = "Location access denied!";
-      console.error("Geolocation error:", err);
+    // Battery Status
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then(battery => {
+        document.getElementById("battery").innerText =
+          `🔋 Battery: ${(battery.level * 100).toFixed(0)}%`;
+      });
+    } else {
+      document.getElementById("battery").innerText = "🔋 Battery info not supported";
+    }
+
+    // Location + Fetch Nearest Station
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          document.getElementById("location").innerText =
+            `📍 Location: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+
+          fetch(`/nearest_station?lat=${lat}&lon=${lon}`)
+            .then(res => res.json())
+            .then(data => {
+              document.getElementById("nearest").innerText = `⛽ Nearest Station: ${data.name}`;
+              document.getElementById("distance").innerText = `📏 Distance: ${data.distance} km`;
+
+              const dirBtn = document.getElementById("dirBtn");
+              dirBtn.style.display = "inline-block";
+              dirBtn.onclick = () => {
+                window.open(
+                  `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lon}`,
+                  "_blank"
+                );
+              };
+            });
+        },
+        err => {
+          document.getElementById("location").innerText = "❌ Location access denied";
+        }
+      );
+    } else {
+      document.getElementById("location").innerText = "❌ Geolocation not supported";
     }
   </script>
 </body>

@@ -4,11 +4,10 @@ import pandas as pd
 
 app = Flask(__name__)
 
-# Load stations data
 stations = pd.read_csv("stations.csv")
 
 def calc_distance(lat1, lon1, lat2, lon2):
-    R = 6371  # Earth radius in km
+    R = 63719
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = (math.sin(dlat/2)**2 +
@@ -51,3 +50,12 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
 
+from flask import send_from_directory
+
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory('templates', 'manifest.json')
+
+@app.route('/service-worker.js')
+def service_worker():
+    return send_from_directory('templates', 'service-worker.js')
