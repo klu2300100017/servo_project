@@ -1,13 +1,14 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import math
 import pandas as pd
+import os
 
 app = Flask(__name__)
 
 stations = pd.read_csv("stations.csv")
 
 def calc_distance(lat1, lon1, lat2, lon2):
-    R = 63719
+    R = 6371  # Earth radius in km
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = (math.sin(dlat/2)**2 +
@@ -44,13 +45,6 @@ def nearest_station():
         })
     else:
         return jsonify({'error': 'No stations found'})
-import os
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
-
-from flask import send_from_directory
 
 @app.route('/manifest.json')
 def manifest():
@@ -59,3 +53,7 @@ def manifest():
 @app.route('/service-worker.js')
 def service_worker():
     return send_from_directory('templates', 'service-worker.js')
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)

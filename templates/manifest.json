@@ -1,19 +1,14 @@
 {
-  "name": "EV Locator App",
-  "short_name": "EV Locator",
+  "name": "EV Station Finder",
+  "short_name": "EV Finder",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0078D7",
+  "background_color": "#0099ff",
+  "theme_color": "#007bff",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2969/2969373.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/2972/2972185.png",
       "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/2969/2969373.png",
-      "sizes": "512x512",
       "type": "image/png"
     }
   ]
