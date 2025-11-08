@@ -1,117 +1,80 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>EV Charging Locator</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        text-align: center;
-        background-color: #eef3f7;
-        color: #333;
-      }
-      .container {
-        margin-top: 70px;
-      }
-      h1 {
-        color: #007bff;
-      }
-      select, button {
-        padding: 10px;
-        font-size: 16px;
-        margin-top: 10px;
-        border-radius: 8px;
-        border: 1px solid #007bff;
-      }
-      button {
-        background-color: #007bff;
-        color: white;
-        border: none;
-        padding: 12px 25px;
-        cursor: pointer;
-      }
-      button:hover {
-        background-color: #0056b3;
-      }
-      .info {
-        font-size: 18px;
-        margin-top: 20px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>🔋 EV Charging Locator</h1>
-      <label for="batteryType">Select Battery Type:</label><br>
-      <select id="batteryType">
-        <option value="">-- Choose your Battery Type --</option>
-        <option value="Tata">Tata</option>
-        <option value="Mahindra">Mahindra</option>
-        <option value="Tesla">Tesla</option>
-      </select>
-      <br />
-      <button onclick="findNearest()">Find My Nearest Station</button>
+<head>
+  <title>EV Charging Locator</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial; text-align: center; background: #eef3f7; color: #333; }
+    .container { margin-top: 70px; }
+    h1 { color: #007bff; }
+    select, button { padding: 10px; font-size: 16px; margin-top: 10px; border-radius: 8px; border: 1px solid #007bff; }
+    button { background-color: #007bff; color: white; border: none; padding: 12px 25px; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+    .info { font-size: 18px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔋 EV Charging Locator</h1>
+    <label for="batteryType">Select Battery Type:</label><br>
+    <select id="batteryType">
+      <option value="">-- Choose your Battery Type --</option>
+      <option value="tata">Tata</option>
+      <option value="mahindra">Mahindra</option>
+      <option value="tesla">Tesla</option>
+    </select>
+    <br>
+    <button onclick="findNearest()">Find My Nearest Station</button>
 
-      <p id="battery">Battery Level: Fetching...</p>
-      <p id="location">Location: Waiting for permission...</p>
-      <p id="station">Nearest Station: -</p>
-    </div>
+    <p id="battery">Battery Level: Fetching...</p>
+    <p id="location">Location: Waiting for permission...</p>
+    <p id="station">Nearest Station: -</p>
+  </div>
 
-    <script>
-      if (navigator.getBattery) {
-        navigator.getBattery().then(function (battery) {
-          function updateBattery() {
-            document.getElementById("battery").innerText =
-              "Battery Level: " + Math.round(battery.level * 100) + "%";
+  <script>
+    if (navigator.getBattery) {
+      navigator.getBattery().then(battery => {
+        function updateBattery() {
+          document.getElementById("battery").innerText = "Battery Level: " + Math.round(battery.level * 100) + "%";
+        }
+        updateBattery();
+        battery.addEventListener("levelchange", updateBattery);
+      });
+    } else {
+      document.getElementById("battery").innerText = "Battery Level: Not Supported";
+    }
+
+    function findNearest() {
+      const type = document.getElementById("batteryType").value.trim().toLowerCase();
+      if (!type) { alert("Please select a battery type"); return; }
+
+      if (!navigator.geolocation) {
+        document.getElementById("location").innerText = "Geolocation not supported";
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        document.getElementById("location").innerText = `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+        const url = `/nearest?lat=${lat}&lon=${lon}&battery_type=${type}`;
+        fetch(url).then(r => r.json()).then(data => {
+          if (data.name) {
+            document.getElementById("station").innerText =
+              `Nearest ${type.charAt(0).toUpperCase() + type.slice(1)} Station: ${data.name} (${data.distance} km away)`;
+          } else {
+            document.getElementById("station").innerText = data.error || "No station found";
           }
-          updateBattery();
-          battery.addEventListener("levelchange", updateBattery);
+        }).catch(err => {
+          console.error(err);
+          document.getElementById("station").innerText = "Error fetching station data";
         });
-      } else {
-        document.getElementById("battery").innerText =
-          "Battery Level: Not Supported";
-      }
-
-      function findNearest() {
-        const type = document.getElementById("batteryType").value;
-        if (!type) {
-          alert("Please select a battery type first!");
-          return;
-        }
-
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              const lat = pos.coords.latitude;
-              const lon = pos.coords.longitude;
-              document.getElementById("location").innerText =
-                "Location: " + lat.toFixed(4) + ", " + lon.toFixed(4);
-
-              fetch(`/nearest?lat=${lat}&lon=${lon}&battery_type=${type}`)
-                .then((res) => res.json())
-                .then((data) => {
-                  if (data.name) {
-                    document.getElementById("station").innerText =
-                      `Nearest ${type} Station: ${data.name} (${data.distance} km away)`;
-                  } else {
-                    document.getElementById("station").innerText =
-                      data.error || "No station found.";
-                  }
-                })
-                .catch(() => {
-                  document.getElementById("station").innerText =
-                    "Failed to fetch station data.";
-                });
-            },
-            () => {
-              document.getElementById("location").innerText =
-                "Location access denied.";
-            }
-          );
-        } else {
-          document.getElementById("location").innerText =
-            "Geolocation not supported.";
-        }
-      }
-    </script>
-  </body>
+      }, () => {
+        document.getElementById("location").innerText = "Location access denied";
+      });
+    }
+  </script>
+</body>
 </html>

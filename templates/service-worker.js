@@ -1,6 +1,21 @@
+const CACHE_NAME = 'ev-app-v1';
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/manifest.json'
+];
+
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open('ev-app').then(cache => cache.addAll(['/']))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+  );
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+    ))
   );
 });
 
