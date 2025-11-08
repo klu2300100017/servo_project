@@ -5,10 +5,8 @@ import os
 
 app = Flask(__name__)
 
-# Load station data
 stations = pd.read_csv("stations.csv")
 
-# Distance function
 def calc_distance(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
