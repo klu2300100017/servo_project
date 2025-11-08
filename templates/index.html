@@ -1,118 +1,119 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EV Station Finder</title>
-  <link rel="manifest" href="/manifest.json" />
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js');
-    }
-  </script>
-  <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: linear-gradient(135deg, #0099ff, #66ccff);
-      color: white;
-      text-align: center;
-      padding: 20px;
-      min-height: 100vh;
-    }
-    button {
-      background-color: white;
-      color: #007bff;
-      border: none;
-      padding: 12px 20px;
-      font-size: 18px;
-      border-radius: 10px;
-      cursor: pointer;
-      margin-top: 20px;
-    }
-    button:hover {
-      background-color: #e6f0ff;
-    }
-    #out {
-      margin-top: 20px;
-      font-size: 18px;
-      background: rgba(255, 255, 255, 0.15);
-      padding: 20px;
-      border-radius: 12px;
-    }
-  </style>
-</head>
-<body>
-  <h1>🔋 EV Station Finder</h1>
-  <p>Find the nearest charging station instantly.</p>
-  <button onclick="findNearest()">Find My Nearest Station</button>
-  <div id="out">⏳ Waiting for input...</div>
+<html>
+  <head>
+    <title>EV Charging Locator</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background-color: #eef3f7;
+        color: #333;
+      }
+      .container {
+        margin-top: 70px;
+      }
+      h1 {
+        color: #007bff;
+      }
+      select, button {
+        padding: 10px;
+        font-size: 16px;
+        margin-top: 10px;
+        border-radius: 8px;
+        border: 1px solid #007bff;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .info {
+        font-size: 18px;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔋 EV Charging Locator</h1>
+      <label for="batteryType">Select Battery Type:</label><br>
+      <select id="batteryType">
+        <option value="">-- Choose your Battery Type --</option>
+        <option value="Tata">Tata</option>
+        <option value="Mahindra">Mahindra</option>
+        <option value="Tesla">Tesla</option>
+      </select>
+      <br />
+      <button onclick="findNearest()">Find My Nearest Station</button>
 
-  <script>
-    async function findNearest() {
-      const out = document.getElementById("out");
+      <p id="battery">Battery Level: Fetching...</p>
+      <p id="location">Location: Waiting for permission...</p>
+      <p id="station">Nearest Station: -</p>
+    </div>
 
-      if (!navigator.permissions || !navigator.geolocation) {
-        out.innerHTML = "⚠️ Geolocation not supported on this device.";
-        return;
+    <script>
+      // Battery Level
+      if (navigator.getBattery) {
+        navigator.getBattery().then(function (battery) {
+          function updateBattery() {
+            document.getElementById("battery").innerText =
+              "Battery Level: " + Math.round(battery.level * 100) + "%";
+          }
+          updateBattery();
+          battery.addEventListener("levelchange", updateBattery);
+        });
+      } else {
+        document.getElementById("battery").innerText =
+          "Battery Level: Not Supported";
       }
 
-      try {
-        const permission = await navigator.permissions.query({ name: "geolocation" });
-
-        if (permission.state === "denied") {
-          out.innerHTML = "❌ Location access denied.<br>Please enable it manually in browser settings.";
+      // Location + nearest station
+      function findNearest() {
+        const type = document.getElementById("batteryType").value;
+        if (!type) {
+          alert("Please select a battery type first!");
           return;
         }
 
-        if (permission.state === "prompt" || permission.state === "granted") {
+        if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
-            async (pos) => {
+            (pos) => {
               const lat = pos.coords.latitude;
               const lon = pos.coords.longitude;
+              document.getElementById("location").innerText =
+                "Location: " + lat.toFixed(4) + ", " + lon.toFixed(4);
 
-              out.innerHTML = `📍 Current location:<br>${lat.toFixed(4)}, ${lon.toFixed(4)}<br>Finding nearest station...`;
-
-              try {
-                const res = await fetch("/nearest", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ lat, lon })
+              fetch(`/nearest?lat=${lat}&lon=${lon}&battery_type=${type}`)
+                .then((res) => res.json())
+                .then((data) => {
+                  if (data.name) {
+                    document.getElementById("station").innerText =
+                      `Nearest ${type} Station: ${data.name} (${data.distance} km away)`;
+                  } else {
+                    document.getElementById("station").innerText =
+                      data.error || "No station found.";
+                  }
+                })
+                .catch(() => {
+                  document.getElementById("station").innerText =
+                    "Failed to fetch station data.";
                 });
-
-                const data = await res.json();
-
-                if (data.error) {
-                  out.innerHTML = `❌ ${data.error}`;
-                  return;
-                }
-
-                // Auto detect Apple or Google Maps
-                const isApple = /iPhone|iPad|Mac/i.test(navigator.userAgent);
-                const mapLink = isApple
-                  ? `http://maps.apple.com/?daddr=${data.lat},${data.lon}`
-                  : `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lon}`;
-
-                out.innerHTML = `
-                  ✅ Nearest Station: <b>${data.name}</b><br>
-                  📏 Distance: ${data.distance} km<br>
-                  🌍 Coords: (${data.lat}, ${data.lon})<br><br>
-                  <button onclick="window.open('${mapLink}', '_blank')">
-                    Get Directions
-                  </button>
-                `;
-              } catch (err) {
-                out.innerHTML = "❌ Failed to fetch data.";
-              }
             },
-            (err) => {
-              out.innerHTML = "⚠️ Location access blocked or failed. Please enable location in settings.";
+            () => {
+              document.getElementById("location").innerText =
+                "Location access denied.";
             }
           );
+        } else {
+          document.getElementById("location").innerText =
+            "Geolocation not supported.";
         }
-      } catch (error) {
-        out.innerHTML = "❌ Error while requesting location permission.";
       }
-    }
-  </script>
-</body>
+    </script>
+  </body>
 </html>
